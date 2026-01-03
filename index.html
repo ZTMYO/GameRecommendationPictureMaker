@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>游戏推荐图制作器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>游戏推荐图制作器</h1>
+            <p class="subtitle">上传两张 1920×1080 WebP 横图，生成竖版推荐图</p>
+        </header>
+
+        <main class="app-main">
+            <section class="left-pane">
+                <form autocomplete="off" novalidate onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="gameName">游戏名称</label>
+                        <input id="gameName" type="text" placeholder="请输入游戏名称" autocomplete="off" autocorrect="off"
+                            autocapitalize="off" spellcheck="false" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gameTags">游戏标签（可多条，用空格或 / 分隔）</label>
+                        <input id="gameTags" type="text" placeholder="例如：动作 / 冒险 / 单机" autocomplete="off"
+                            autocorrect="off" autocapitalize="off" spellcheck="false" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>上传图片 1（上方）<span class="hint">格式：webp，分辨率：1920×1080</span></label>
+                        <input id="image1" type="file" accept="image/webp" autocomplete="off" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>上传图片 2（下方）<span class="hint">格式：webp，分辨率：1920×1080</span></label>
+                        <input id="image2" type="file" accept="image/webp" autocomplete="off" />
+                    </div>
+
+                    <div class="actions">
+                        <button id="generateBtn" type="button">生成推荐图</button>
+                        <button id="downloadBtn" type="button" disabled>下载图片</button>
+                    </div>
+
+                    <p class="tip">提示：修改文字或重新选择图片后，点击“生成推荐图”重新预览。</p>
+                </form>
+            </section>
+
+            <section class="right-pane">
+                <h2 class="preview-title">预览</h2>
+                <div class="preview-wrapper">
+                    <canvas id="previewCanvas"></canvas>
+                    <div id="placeholder" class="placeholder">
+                        <p>请先在左侧上传两张 1920×1080 WebP 图片并填写游戏名称与 Tag，然后点击“生成推荐图”。</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
