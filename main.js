@@ -6,6 +6,16 @@ const generateBtn = document.getElementById('generateBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const canvas = document.getElementById('previewCanvas');
 const placeholder = document.getElementById('placeholder');
+const watermarkInput = document.getElementById('watermarkText');
+
+// Steam 相关元素
+const steamSearchInput = document.getElementById('steamSearchInput');
+const steamSearchBtn = document.getElementById('steamSearchBtn');
+const steamScreenshotsContainer = document.getElementById('steamScreenshots');
+const sourceSteamBtn = document.getElementById('sourceSteamBtn');
+const sourceLocalBtn = document.getElementById('sourceLocalBtn');
+const steamSourceGroup = document.getElementById('steamSourceGroup');
+const localSourceGroup = document.getElementById('localSourceGroup');
 
 const ctx = canvas.getContext('2d');
 
@@ -21,6 +31,9 @@ const CANVAS_HEIGHT = 1920;
 
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
+
+// 当前从 Steam 选中的两张截图 URL（最多 2 张）
+let selectedSteamImages = [];
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -45,6 +58,183 @@ function loadImageFromFile(file) {
     };
     img.src = url;
   });
+}
+
+// 从远程 URL 加载图片（用于 Steam 截图）
+function loadImageFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error('图片地址不存在'));
+      return;
+    }
+
+    const img = new Image();
+    // 如果目标服务器未正确设置 CORS，这里绘制后下载可能会受限
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      resolve({ img, url });
+    };
+    img.onerror = () => {
+      reject(new Error('图片加载失败'));
+    };
+    img.src = url;
+  });
+}
+
+// --- Steam 相关逻辑 ---
+
+function buildTagsText(data) {
+  const genres = Array.isArray(data.genres) ? data.genres.map(g => g.description) : [];
+  const categories = Array.isArray(data.categories) ? data.categories.map(c => c.description) : [];
+
+  const picked = [];
+
+  for (let i = 0; i < genres.length && picked.length < 3; i++) {
+    if (!picked.includes(genres[i])) {
+      picked.push(genres[i]);
+    }
+  }
+
+  for (let i = 0; i < categories.length && picked.length < 5; i++) {
+    if (!picked.includes(categories[i])) {
+      picked.push(categories[i]);
+    }
+  }
+
+  if (picked.length === 0) {
+    return '';
+  }
+
+  return picked.join(' / ');
+}
+
+function renderSteamScreenshots(screenshots) {
+  if (!steamScreenshotsContainer) return;
+
+  steamScreenshotsContainer.innerHTML = '';
+  selectedSteamImages = [];
+
+  if (!Array.isArray(screenshots) || screenshots.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'steam-screenshots-empty';
+    empty.textContent = '未从 Steam 获取到截图，可尝试手动上传。';
+    steamScreenshotsContainer.appendChild(empty);
+    return;
+  }
+
+  screenshots.forEach((shot, index) => {
+    const url = shot.path_full || shot.path_thumbnail;
+    if (!url) return;
+
+    const item = document.createElement('div');
+    item.className = 'steam-screenshot-item';
+    item.dataset.url = url;
+    item.title = '点击选择（最多两张）';
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = `Steam 截图 ${index + 1}`;
+
+    item.appendChild(img);
+
+    item.addEventListener('click', () => {
+      const currentUrl = item.dataset.url;
+      const selectedIndex = selectedSteamImages.indexOf(currentUrl);
+
+      if (selectedIndex >= 0) {
+        // 取消选中
+        selectedSteamImages.splice(selectedIndex, 1);
+        item.classList.remove('selected');
+      } else {
+        if (selectedSteamImages.length >= 2) {
+          // 简单策略：第三次点击时，先移除最早的一张
+          const removedUrl = selectedSteamImages.shift();
+          const allItems = steamScreenshotsContainer.querySelectorAll('.steam-screenshot-item');
+          allItems.forEach(el => {
+            if (el.dataset.url === removedUrl) {
+              el.classList.remove('selected');
+            }
+          });
+        }
+
+        selectedSteamImages.push(currentUrl);
+        item.classList.add('selected');
+      }
+    });
+
+    steamScreenshotsContainer.appendChild(item);
+  });
+
+  // 默认选中前两张截图
+  const urls = screenshots
+    .map(shot => shot.path_full || shot.path_thumbnail)
+    .filter(Boolean);
+
+  selectedSteamImages = urls.slice(0, 2);
+
+  if (selectedSteamImages.length > 0) {
+    const items = steamScreenshotsContainer.querySelectorAll('.steam-screenshot-item');
+    items.forEach(item => {
+      if (selectedSteamImages.includes(item.dataset.url)) {
+        item.classList.add('selected');
+      }
+    });
+  }
+}
+
+async function fetchSteamAppDetailsById(appIdRaw) {
+  const appId = String(appIdRaw || '').trim();
+
+  if (!appId) {
+    alert('请输入 Steam AppID。');
+    return;
+  }
+
+  if (!/^[0-9]+$/.test(appId)) {
+    alert('AppID 需要是纯数字，例如 730。');
+    return;
+  }
+
+  const url = `http://localhost:3000/steam/appdetails?appids=${encodeURIComponent(appId)}&cc=cn&l=schinese`;
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`请求失败：${resp.status}`);
+    }
+
+    const json = await resp.json();
+    const appDataWrapper = json[appId];
+
+    if (!appDataWrapper || !appDataWrapper.success || !appDataWrapper.data) {
+      throw new Error('未找到对应的游戏信息，请检查 AppID 是否正确。');
+    }
+
+    const data = appDataWrapper.data;
+
+    // 填充名称
+    if (data.name && gameNameInput) {
+      gameNameInput.value = data.name;
+    }
+
+    // 填充标签
+    if (gameTagsInput) {
+      const tagsText = buildTagsText(data);
+      if (tagsText) {
+        gameTagsInput.value = tagsText;
+      }
+    }
+
+    // 渲染截图并默认选中前两张
+    renderSteamScreenshots(data.screenshots || []);
+
+    // 自动生成一次预览
+    if ((data.screenshots || []).length > 0) {
+      generate();
+    }
+  } catch (err) {
+    alert(err.message || '从 Steam 获取游戏信息失败。');
+  }
 }
 
 function drawTextArea(title, tags) {
@@ -80,7 +270,10 @@ function drawTextArea(title, tags) {
 // 右下角水印
 function drawWatermark() {
   const padding = 40;
-  const text = '@ZTMYO';
+  const textRaw = watermarkInput && watermarkInput.value
+    ? watermarkInput.value.trim()
+    : '@ZTMYO';
+  const text = textRaw || '@ZTMYO';
 
   ctx.textAlign = 'right';
   ctx.textBaseline = 'bottom';
@@ -101,19 +294,31 @@ function drawWatermark() {
 }
 
 async function generate() {
+  const useSteamImages = selectedSteamImages.length === 2;
+
   const file1 = image1Input.files[0];
   const file2 = image2Input.files[0];
 
-  if (!file1 || !file2) {
-    alert('请先选择两张图片（上方和下方）。');
+  if (!useSteamImages && (!file1 || !file2)) {
+    alert('请先选择两张图片（上方和下方），或从 Steam 截图中选择两张。');
     return;
   }
 
   try {
-    const [img1Data, img2Data] = await Promise.all([
-      loadImageFromFile(file1),
-      loadImageFromFile(file2)
-    ]);
+    let img1Data;
+    let img2Data;
+
+    if (useSteamImages) {
+      [img1Data, img2Data] = await Promise.all([
+        loadImageFromUrl(selectedSteamImages[0]),
+        loadImageFromUrl(selectedSteamImages[1])
+      ]);
+    } else {
+      [img1Data, img2Data] = await Promise.all([
+        loadImageFromFile(file1),
+        loadImageFromFile(file2)
+      ]);
+    }
 
     // 清空画布
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -143,9 +348,11 @@ async function generate() {
     // 启用下载按钮
     downloadBtn.disabled = false;
 
-    // 释放 URL
-    URL.revokeObjectURL(img1Data.url);
-    URL.revokeObjectURL(img2Data.url);
+    // 释放 URL（仅对本地文件模式有效）
+    if (!useSteamImages) {
+      URL.revokeObjectURL(img1Data.url);
+      URL.revokeObjectURL(img2Data.url);
+    }
   } catch (err) {
     alert(err.message || '生成失败，请检查图片。');
   }
@@ -174,3 +381,34 @@ downloadBtn.addEventListener('click', () => {
   if (downloadBtn.disabled) return;
   downloadImage();
 });
+
+// 绑定 Steam AppID 获取按钮
+if (steamSearchBtn && steamSearchInput) {
+  steamSearchBtn.addEventListener('click', () => {
+    fetchSteamAppDetailsById(steamSearchInput.value);
+  });
+}
+
+// 图片来源切换：Steam 截图 / 本地图片
+function setSourceMode(mode) {
+  if (!steamSourceGroup || !localSourceGroup || !sourceSteamBtn || !sourceLocalBtn) return;
+
+  if (mode === 'steam') {
+    steamSourceGroup.style.display = '';
+    localSourceGroup.style.display = 'none';
+    sourceSteamBtn.classList.add('active');
+    sourceLocalBtn.classList.remove('active');
+  } else {
+    steamSourceGroup.style.display = 'none';
+    localSourceGroup.style.display = '';
+    sourceSteamBtn.classList.remove('active');
+    sourceLocalBtn.classList.add('active');
+  }
+}
+
+if (sourceSteamBtn && sourceLocalBtn) {
+  sourceSteamBtn.addEventListener('click', () => setSourceMode('steam'));
+  sourceLocalBtn.addEventListener('click', () => setSourceMode('local'));
+  // 默认使用 Steam 截图
+  setSourceMode('steam');
+}
