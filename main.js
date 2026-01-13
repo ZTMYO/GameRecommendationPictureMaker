@@ -7,6 +7,8 @@ const downloadBtn = document.getElementById('downloadBtn');
 const canvas = document.getElementById('previewCanvas');
 const placeholder = document.getElementById('placeholder');
 const watermarkInput = document.getElementById('watermarkText');
+const watermarkOnBtn = document.getElementById('watermarkOnBtn');
+const watermarkOffBtn = document.getElementById('watermarkOffBtn');
 
 // Steam 相关元素
 const steamSearchInput = document.getElementById('steamSearchInput');
@@ -21,6 +23,9 @@ const ctx = canvas.getContext('2d');
 
 // 下载计数器，用于生成有序文件名
 let downloadIndex = 1;
+
+// 水印开关状态，默认开启
+let watermarkEnabled = true;
 
 // 固定画布大小：宽 1440，高 1920
 // 原始图片为 1920×1080，这里等比缩放到 1440×810，两张图共 1620，高度剩余 300 作为中间留白区
@@ -336,8 +341,10 @@ async function generate() {
     // 中间文字区域
     drawTextArea(gameNameInput.value, gameTagsInput.value);
 
-    // 右下角水印
-    drawWatermark();
+    // 右下角水印（可选）
+    if (watermarkEnabled) {
+      drawWatermark();
+    }
 
     // 显示画布
     canvas.style.display = 'block';
@@ -411,4 +418,36 @@ if (sourceSteamBtn && sourceLocalBtn) {
   sourceLocalBtn.addEventListener('click', () => setSourceMode('local'));
   // 默认使用 Steam 截图
   setSourceMode('steam');
+}
+
+// 水印开关切换
+function setWatermarkEnabled(enabled) {
+  watermarkEnabled = !!enabled;
+
+  if (watermarkOnBtn && watermarkOffBtn) {
+    if (watermarkEnabled) {
+      watermarkOnBtn.classList.add('active');
+      watermarkOffBtn.classList.remove('active');
+    } else {
+      watermarkOnBtn.classList.remove('active');
+      watermarkOffBtn.classList.add('active');
+    }
+  }
+
+  if (watermarkInput) {
+    watermarkInput.style.display = watermarkEnabled ? '' : 'none';
+  }
+
+  // 切换水印开关后，尝试重新生成预览
+  // generate() 内部会自行检查是否具备生成条件
+  if (typeof generate === 'function') {
+    generate();
+  }
+}
+
+if (watermarkOnBtn && watermarkOffBtn) {
+  watermarkOnBtn.addEventListener('click', () => setWatermarkEnabled(true));
+  watermarkOffBtn.addEventListener('click', () => setWatermarkEnabled(false));
+  // 默认开启水印
+  setWatermarkEnabled(true);
 }
