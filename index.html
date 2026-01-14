@@ -18,8 +18,14 @@
             <section class="left-pane">
                 <form autocomplete="off" novalidate onsubmit="return false;">
                     <div class="form-group">
-                        <label for="gameName">游戏名称</label>
-                        <input id="gameName" type="text" placeholder="请输入游戏名称" autocomplete="off" autocorrect="off"
+                        <label for="gameName">游戏名称 1</label>
+                        <input id="gameName" type="text" placeholder="中文名" autocomplete="off" autocorrect="off"
+                            autocapitalize="off" spellcheck="false" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gameName2">游戏名称 2（可选）</label>
+                        <input id="gameName2" type="text" placeholder="英文名" autocomplete="off" autocorrect="off"
                             autocapitalize="off" spellcheck="false" />
                     </div>
 
@@ -84,11 +90,23 @@
                 <form autocomplete="off" novalidate onsubmit="return false;">
                     <div class="form-group">
                         <label for="watermarkText">水印文本</label>
-                        <div class="source-switch" style="margin-top: 6px; margin-bottom: 6px;">
-                            <button type="button" id="watermarkOnBtn" class="source-switch-btn active">开</button>
-                            <button type="button" id="watermarkOffBtn" class="source-switch-btn">关</button>
-                        </div>
                         <input id="watermarkText" type="text" placeholder="例如：@ZTMYO" autocomplete="off" autocorrect="off"
+                            autocapitalize="off" spellcheck="false" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>价格文本</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input id="metaPriceOriginal" type="text" placeholder="原价" autocomplete="off" autocorrect="off"
+                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="metaPriceCurrent" type="text" placeholder="现价" autocomplete="off" autocorrect="off"
+                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="metaRating">评分文本</label>
+                        <input id="metaRating" type="text" placeholder="例如：评分 89" autocomplete="off" autocorrect="off"
                             autocapitalize="off" spellcheck="false" />
                     </div>
                 </form>

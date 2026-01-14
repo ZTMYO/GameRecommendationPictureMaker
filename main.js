@@ -1,4 +1,5 @@
 const gameNameInput = document.getElementById('gameName');
+const gameName2Input = document.getElementById('gameName2');
 const gameTagsInput = document.getElementById('gameTags');
 const image1Input = document.getElementById('image1');
 const image2Input = document.getElementById('image2');
@@ -7,8 +8,10 @@ const downloadBtn = document.getElementById('downloadBtn');
 const canvas = document.getElementById('previewCanvas');
 const placeholder = document.getElementById('placeholder');
 const watermarkInput = document.getElementById('watermarkText');
-const watermarkOnBtn = document.getElementById('watermarkOnBtn');
-const watermarkOffBtn = document.getElementById('watermarkOffBtn');
+// 中部价格 / 评分文本输入
+const metaPriceOriginalInput = document.getElementById('metaPriceOriginal');
+const metaPriceCurrentInput = document.getElementById('metaPriceCurrent');
+const metaRatingInput = document.getElementById('metaRating');
 
 // Steam 相关元素
 const steamSearchInput = document.getElementById('steamSearchInput');
@@ -24,8 +27,13 @@ const ctx = canvas.getContext('2d');
 // 下载计数器，用于生成有序文件名
 let downloadIndex = 1;
 
-// 水印开关状态，默认开启
-let watermarkEnabled = true;
+// 是否已经成功生成过至少一张预览图
+let hasGeneratedOnce = false;
+
+// 折扣价格信息
+let hasDiscountPrice = false;
+let discountOriginalPriceText = '';
+let discountCurrentPriceText = '';
 
 // 固定画布大小：宽 1440，高 1920
 // 原始图片为 1920×1080，这里等比缩放到 1440×810，两张图共 1620，高度剩余 300 作为中间留白区
@@ -39,6 +47,52 @@ canvas.height = CANVAS_HEIGHT;
 
 // 当前从 Steam 选中的两张截图 URL（最多 2 张）
 let selectedSteamImages = [];
+
+// 当前游戏的价格+评分信息文本（显示在中间黑色带右侧）
+let gameMetaText = '';
+
+function rebuildGameMetaText() {
+  const parts = [];
+  const original = metaPriceOriginalInput && metaPriceOriginalInput.value
+    ? metaPriceOriginalInput.value.trim()
+    : '';
+  const price = metaPriceCurrentInput && metaPriceCurrentInput.value
+    ? metaPriceCurrentInput.value.trim()
+    : '';
+  const rating = metaRatingInput && metaRatingInput.value
+    ? metaRatingInput.value.trim()
+    : '';
+
+  // 根据原价和现价判断是否为折扣价（仅当两者都是金额且原价>现价时）
+  hasDiscountPrice = false;
+  discountOriginalPriceText = '';
+  discountCurrentPriceText = '';
+
+  if (original && price) {
+    const extractNumber = (text) => {
+      const match = text.replace(',', '').match(/([0-9]+(?:\.[0-9]+)?)/);
+      return match ? parseFloat(match[1]) : NaN;
+    };
+
+    const originalVal = extractNumber(original);
+    const currentVal = extractNumber(price);
+
+    if (!Number.isNaN(originalVal) && !Number.isNaN(currentVal) && originalVal > currentVal) {
+      hasDiscountPrice = true;
+      discountOriginalPriceText = original;
+      discountCurrentPriceText = price;
+    }
+  }
+
+  if (price) {
+    parts.push(price);
+  }
+  if (rating) {
+    parts.push(rating);
+  }
+
+  gameMetaText = parts.join(' · ');
+}
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -62,6 +116,15 @@ function loadImageFromFile(file) {
       reject(new Error('图片加载失败'));
     };
     img.src = url;
+  });
+}
+
+if (metaRatingInput) {
+  metaRatingInput.addEventListener('input', () => {
+    rebuildGameMetaText();
+    if (hasGeneratedOnce && typeof generate === 'function') {
+      generate();
+    }
   });
 }
 
@@ -217,6 +280,52 @@ async function fetchSteamAppDetailsById(appIdRaw) {
 
     const data = appDataWrapper.data;
 
+    // 重置折扣信息
+    hasDiscountPrice = false;
+    discountOriginalPriceText = '';
+    discountCurrentPriceText = '';
+
+    // 计算价格/免费信息，填入价格输入框（原价+现价）
+    let originalPriceText = '';
+    let priceText = '';
+    if (data.is_free) {
+      priceText = '免费游玩';
+    } else if (data.price_overview && typeof data.price_overview.final === 'number') {
+      const finalCents = data.price_overview.final;
+      const finalYuan = (finalCents / 100).toFixed(2);
+      priceText = `¥${finalYuan}`;
+
+      // 如果有折扣，则记录原价
+      if (
+        typeof data.price_overview.discount_percent === 'number' &&
+        data.price_overview.discount_percent > 0 &&
+        typeof data.price_overview.initial === 'number'
+      ) {
+        const initialCents = data.price_overview.initial;
+        const initialYuan = (initialCents / 100).toFixed(2);
+        originalPriceText = `¥${initialYuan}`;
+      }
+    }
+
+    if (metaPriceOriginalInput) {
+      metaPriceOriginalInput.value = originalPriceText;
+    }
+    if (metaPriceCurrentInput) {
+      metaPriceCurrentInput.value = priceText;
+    }
+
+    // 计算评分信息（Metacritic），填入评分输入框
+    let ratingText = '';
+    if (data.metacritic && typeof data.metacritic.score === 'number') {
+      ratingText = `评分 ${data.metacritic.score}`;
+    }
+
+    if (metaRatingInput) {
+      metaRatingInput.value = ratingText;
+    }
+
+    rebuildGameMetaText();
+
     // 填充名称
     if (data.name && gameNameInput) {
       gameNameInput.value = data.name;
@@ -242,7 +351,7 @@ async function fetchSteamAppDetailsById(appIdRaw) {
   }
 }
 
-function drawTextArea(title, tags) {
+function drawTextArea(title, subTitle, tags) {
   const areaTop = IMAGE_HEIGHT;
   const areaHeight = GAP_HEIGHT;
 
@@ -250,35 +359,173 @@ function drawTextArea(title, tags) {
   ctx.fillStyle = '#020617';
   ctx.fillRect(0, areaTop, CANVAS_WIDTH, areaHeight);
 
-  // 居中布局
-  const centerX = CANVAS_WIDTH / 2;
+  const hasMeta = !!(gameMetaText && gameMetaText.trim());
 
-  // 游戏名称
+  // 游戏名称1 / 名称2（英文） / 标签
+  const titleText = title && title.trim() ? title.trim() : '游戏名称';
+  const subTitleText = subTitle && subTitle.trim() ? subTitle.trim() : '';
+  const tagsText = tags && tags.trim() ? tags.trim() : '动作 / 冒险 / 示例标签';
+
+  const midY = areaTop + areaHeight / 2;
+  let titleY;
+  let subTitleY;
+  let tagsY;
+
+  if (subTitleText) {
+    // 有名称2时：三行拉开间距
+    titleY = midY - 58;     // 标题稍微靠上
+    subTitleY = midY;       // 英文名居中
+    tagsY = midY + 54;      // 标签再往下拉一些
+  } else {
+    // 只有标题+标签时：保持原先相对紧凑的两行布局
+    titleY = areaTop + areaHeight / 2 - 40;
+    subTitleY = midY; // 不会被使用
+    tagsY = areaTop + areaHeight / 2 + 32;
+  }
+
   ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
   ctx.fillStyle = '#F9FAFB';
   ctx.font = 'bold 80px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
 
-  const titleY = areaTop + areaHeight / 2 - 40;
-  const tagsY = areaTop + areaHeight / 2 + 32;
+  if (hasMeta) {
+    // 有右侧信息时：左对齐，整体稍微靠左
+    const leftPadding = 120;
+    ctx.textAlign = 'left';
+    ctx.fillText(titleText, leftPadding, titleY);
 
-  const titleText = title && title.trim() ? title.trim() : '游戏名称';
-  ctx.fillText(titleText, centerX, titleY);
+    // 名称 2（英文名），略小字号
+    if (subTitleText) {
+      ctx.font = '600 48px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#E5E7EB';
+      ctx.fillText(subTitleText, leftPadding, subTitleY);
+    }
 
-  // Tag
-  const tagsText = tags && tags.trim() ? tags.trim() : '动作 / 冒险 / 示例标签';
-  ctx.font = '500 40px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillStyle = '#9CA3AF';
-  ctx.fillText(tagsText, centerX, tagsY);
+    ctx.font = '500 40px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#9CA3AF';
+    ctx.fillText(tagsText, leftPadding, tagsY);
+  } else {
+    // 没有右侧信息时：标题和标签居中
+    const centerX = CANVAS_WIDTH / 2;
+    ctx.textAlign = 'center';
+    ctx.fillText(titleText, centerX, titleY);
+
+    // 名称 2（英文名），略小字号
+    if (subTitleText) {
+      ctx.font = '600 48px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#E5E7EB';
+      ctx.fillText(subTitleText, centerX, subTitleY);
+    }
+
+    ctx.font = '500 40px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#9CA3AF';
+    ctx.fillText(tagsText, centerX, tagsY);
+  }
+
+  // 右侧区域：价格 + 评分（右对齐，上下两行）
+  if (hasMeta) {
+    const rightPadding = 120;
+    const baseX = CANVAS_WIDTH - rightPadding;
+    const centerY = areaTop + areaHeight / 2;
+
+    // 将组合文本拆成两部分：价格在上，评分在下
+    const parts = gameMetaText.trim().split(' · ').filter(Boolean);
+    const priceText = parts[0] || '';
+    const ratingText = parts[1] || '';
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    // 价格：有折扣时同一行显示「现价 + 原价(删除线)」，否则只显示一行现价
+    if (priceText) {
+      const hasSubTitle = !!(subTitle && subTitle.trim());
+      let priceY;
+
+      if (hasSubTitle) {
+        // 有副标题时：让现价的基线与左侧主标题大致对齐
+        priceY = titleY;
+      } else {
+        // 无副标题：保持原有相对位置
+        priceY = ratingText ? centerY - 20 : centerY;
+      }
+
+      if (hasDiscountPrice && discountOriginalPriceText && discountCurrentPriceText) {
+        // 使用不同字号：现价稍大、原价略小
+        const currentFontSize = 56;
+        const originalFontSize = 44;
+
+        // 先测量两段文字宽度
+        ctx.font = `bold ${currentFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+        const currentMetrics = ctx.measureText(priceText);
+
+        ctx.font = `500 ${originalFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+        const originalMetrics = ctx.measureText(discountOriginalPriceText);
+
+        const gap = 24; // 现价和原价之间的间距
+        const totalWidth = currentMetrics.width + gap + originalMetrics.width;
+
+        // 让整个价格块右对齐到 baseX
+        const blockLeftX = baseX - totalWidth;
+        const currentX = blockLeftX + currentMetrics.width; // 右对齐现价
+        const originalX = baseX; // 原价右对齐到最右侧
+
+        // 现价：加粗
+        ctx.textAlign = 'right';
+        ctx.font = `bold ${currentFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.fillStyle = '#ffffffff';
+        ctx.fillText(priceText, currentX, priceY);
+
+        // 原价：灰色、不加粗，带删除线
+        ctx.font = `500 ${originalFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.fillStyle = '#9CA3AF';
+        ctx.fillText(discountOriginalPriceText, originalX, priceY);
+
+        const lineMetrics = ctx.measureText(discountOriginalPriceText);
+        const lineY = priceY - originalFontSize * 0.14; // 略微靠上，模拟删除线
+        ctx.strokeStyle = '#6B7280';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(originalX - lineMetrics.width, lineY);
+        ctx.lineTo(originalX, lineY);
+        ctx.stroke();
+      } else {
+        // 无折扣：单行展示价格
+        ctx.font = 'bold 56px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#F9FAFB';
+        ctx.fillText(priceText, baseX, priceY);
+      }
+    }
+
+    // 评分：略小一号，放在价格下方
+    if (ratingText) {
+      ctx.font = '600 44px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#E5E7EB';
+      const hasSubTitle = !!(subTitle && subTitle.trim());
+      let ratingY;
+
+      if (hasSubTitle && priceText) {
+        // 有副标题且有价格时：让评分落在副标题与标签之间的大致中部
+        ratingY = (subTitleY + tagsY) / 2;
+      } else if (priceText) {
+        // 无副标题，仅根据价格做轻微下移
+        ratingY = centerY + 34;
+      } else {
+        // 只有评分时垂直居中
+        ratingY = centerY;
+      }
+      ctx.fillText(ratingText, baseX, ratingY);
+    }
+  }
 }
 
 // 右下角水印
 function drawWatermark() {
   const padding = 40;
-  const textRaw = watermarkInput && watermarkInput.value
+  const text = watermarkInput && watermarkInput.value
     ? watermarkInput.value.trim()
-    : '@ZTMYO';
-  const text = textRaw || '@ZTMYO';
+    : '';
+
+  // 输入为空时不绘制水印
+  if (!text) return;
 
   ctx.textAlign = 'right';
   ctx.textBaseline = 'bottom';
@@ -339,18 +586,19 @@ async function generate() {
     ctx.drawImage(img2Data.img, 0, IMAGE_HEIGHT + GAP_HEIGHT, CANVAS_WIDTH, IMAGE_HEIGHT);
 
     // 中间文字区域
-    drawTextArea(gameNameInput.value, gameTagsInput.value);
+    drawTextArea(gameNameInput.value, gameName2Input ? gameName2Input.value : '', gameTagsInput.value);
 
-    // 右下角水印（可选）
-    if (watermarkEnabled) {
-      drawWatermark();
-    }
+    // 右下角水印：仅当水印文本非空时绘制
+    drawWatermark();
 
     // 显示画布
     canvas.style.display = 'block';
     if (placeholder) {
       placeholder.style.display = 'none';
     }
+
+    // 标记已经成功生成过
+    hasGeneratedOnce = true;
 
     // 启用下载按钮
     downloadBtn.disabled = false;
@@ -420,34 +668,30 @@ if (sourceSteamBtn && sourceLocalBtn) {
   setSourceMode('steam');
 }
 
-// 水印开关切换
-function setWatermarkEnabled(enabled) {
-  watermarkEnabled = !!enabled;
-
-  if (watermarkOnBtn && watermarkOffBtn) {
-    if (watermarkEnabled) {
-      watermarkOnBtn.classList.add('active');
-      watermarkOffBtn.classList.remove('active');
-    } else {
-      watermarkOnBtn.classList.remove('active');
-      watermarkOffBtn.classList.add('active');
+// 水印文本联动：修改后自动刷新预览（在已有预览的前提下）
+if (watermarkInput) {
+  watermarkInput.addEventListener('input', () => {
+    if (hasGeneratedOnce && typeof generate === 'function') {
+      generate();
     }
-  }
-
-  if (watermarkInput) {
-    watermarkInput.style.display = watermarkEnabled ? '' : 'none';
-  }
-
-  // 切换水印开关后，尝试重新生成预览
-  // generate() 内部会自行检查是否具备生成条件
-  if (typeof generate === 'function') {
-    generate();
-  }
+  });
 }
 
-if (watermarkOnBtn && watermarkOffBtn) {
-  watermarkOnBtn.addEventListener('click', () => setWatermarkEnabled(true));
-  watermarkOffBtn.addEventListener('click', () => setWatermarkEnabled(false));
-  // 默认开启水印
-  setWatermarkEnabled(true);
+// 中部价格 / 评分文本输入联动
+if (metaPriceOriginalInput) {
+  metaPriceOriginalInput.addEventListener('input', () => {
+    rebuildGameMetaText();
+    if (hasGeneratedOnce && typeof generate === 'function') {
+      generate();
+    }
+  });
+}
+
+if (metaPriceCurrentInput) {
+  metaPriceCurrentInput.addEventListener('input', () => {
+    rebuildGameMetaText();
+    if (hasGeneratedOnce && typeof generate === 'function') {
+      generate();
+    }
+  });
 }
