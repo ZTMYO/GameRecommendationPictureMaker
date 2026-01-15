@@ -41,7 +41,7 @@ const server = http.createServer(async (req, res) => {
 
     res.statusCode = resp.status || 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Access-Control-Allow-Origin', '*'); // 关键：允许任何前端域访问
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.end(body);
   } catch (e) {
     res.statusCode = 500;

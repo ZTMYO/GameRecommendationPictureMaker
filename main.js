@@ -3,6 +3,8 @@ const gameName2Input = document.getElementById('gameName2');
 const gameTagsInput = document.getElementById('gameTags');
 const image1Input = document.getElementById('image1');
 const image2Input = document.getElementById('image2');
+const image1Preview = document.getElementById('image1Preview');
+const image2Preview = document.getElementById('image2Preview');
 const generateBtn = document.getElementById('generateBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const canvas = document.getElementById('previewCanvas');
@@ -17,6 +19,9 @@ const metaRatingInput = document.getElementById('metaRating');
 const steamSearchInput = document.getElementById('steamSearchInput');
 const steamSearchBtn = document.getElementById('steamSearchBtn');
 const steamScreenshotsContainer = document.getElementById('steamScreenshots');
+const steamScreenshotsWrapper = document.querySelector('.steam-screenshots-wrapper');
+const steamScreenshotsScrollbar = document.querySelector('.steam-screenshots-scrollbar');
+const steamScreenshotsThumb = document.querySelector('.steam-screenshots-thumb');
 const sourceSteamBtn = document.getElementById('sourceSteamBtn');
 const sourceLocalBtn = document.getElementById('sourceLocalBtn');
 const steamSourceGroup = document.getElementById('steamSourceGroup');
@@ -35,8 +40,9 @@ let hasDiscountPrice = false;
 let discountOriginalPriceText = '';
 let discountCurrentPriceText = '';
 
-// 固定画布大小：宽 1440，高 1920
-// 原始图片为 1920×1080，这里等比缩放到 1440×810，两张图共 1620，高度剩余 300 作为中间留白区
+// 本地预览使用的临时 URL，便于切换文件时释放
+let image1PreviewUrl = '';
+let image2PreviewUrl = '';
 const CANVAS_WIDTH = 1440;
 const IMAGE_HEIGHT = 810;
 const GAP_HEIGHT = 300;
@@ -94,6 +100,38 @@ function rebuildGameMetaText() {
   gameMetaText = parts.join(' · ');
 }
 
+// 自定义 Steam 截图滚动条同步逻辑
+function updateSteamScreenshotsScrollbar() {
+  if (!steamScreenshotsContainer || !steamScreenshotsScrollbar || !steamScreenshotsThumb) return;
+
+  const scrollHeight = steamScreenshotsContainer.scrollHeight;
+  const clientHeight = steamScreenshotsContainer.clientHeight;
+
+  // 如果内容没溢出，不显示自定义滚动条
+  if (!scrollHeight || scrollHeight <= clientHeight) {
+    steamScreenshotsScrollbar.style.display = 'none';
+    return;
+  }
+
+  steamScreenshotsScrollbar.style.display = '';
+
+  const maxScrollTop = scrollHeight - clientHeight;
+  const scrollTop = steamScreenshotsContainer.scrollTop;
+  const trackHeight = steamScreenshotsScrollbar.clientHeight || clientHeight;
+
+  // 滑块高度最小限制，避免太细不好点
+  const minThumbHeight = 32;
+  let thumbHeight = (clientHeight / scrollHeight) * trackHeight;
+  if (thumbHeight < minThumbHeight) thumbHeight = minThumbHeight;
+
+  const maxThumbTop = trackHeight - thumbHeight;
+  const ratio = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+  const thumbTop = maxThumbTop * ratio;
+
+  steamScreenshotsThumb.style.height = `${thumbHeight}px`;
+  steamScreenshotsThumb.style.transform = `translateY(${thumbTop}px)`;
+}
+
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
     if (!file) {
@@ -101,8 +139,8 @@ function loadImageFromFile(file) {
       return;
     }
 
-    if (file.type !== 'image/webp') {
-      reject(new Error('图片格式必须为 WebP'));
+    if (!file.type || !file.type.startsWith('image/')) {
+      reject(new Error('请选择图片文件（支持常见格式，如 PNG/JPEG/WebP 等）'));
       return;
     }
 
@@ -117,6 +155,79 @@ function loadImageFromFile(file) {
     };
     img.src = url;
   });
+}
+
+// 在指定区域内按等比缩放绘制图片，允许留黑边，不裁剪
+function drawImageLetterboxed(img, destX, destY, destWidth, destHeight) {
+  const imgRatio = img.width / img.height;
+  const destRatio = destWidth / destHeight;
+
+  let drawWidth;
+  let drawHeight;
+  let offsetX;
+  let offsetY;
+
+  if (imgRatio > destRatio) {
+    // 图片更宽：以宽度适配，留上下黑边
+    drawWidth = destWidth;
+    drawHeight = destWidth / imgRatio;
+    offsetX = destX;
+    offsetY = destY + (destHeight - drawHeight) / 2;
+  } else {
+    // 图片更高：以高度适配，留左右黑边
+    drawHeight = destHeight;
+    drawWidth = destHeight * imgRatio;
+    offsetX = destX + (destWidth - drawWidth) / 2;
+    offsetY = destY;
+  }
+
+  ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+// 更新本地图片预览
+function updateLocalImagePreview(fileInput, imgElement, urlHolderKey) {
+  if (!fileInput || !imgElement) return;
+
+  const [file] = fileInput.files;
+
+  // 清空预览
+  if (!file) {
+    imgElement.style.display = 'none';
+    imgElement.src = '';
+    if (urlHolderKey === 'image1' && image1PreviewUrl) {
+      URL.revokeObjectURL(image1PreviewUrl);
+      image1PreviewUrl = '';
+    }
+    if (urlHolderKey === 'image2' && image2PreviewUrl) {
+      URL.revokeObjectURL(image2PreviewUrl);
+      image2PreviewUrl = '';
+    }
+    return;
+  }
+
+  if (!file.type || !file.type.startsWith('image/')) {
+    alert('请选择图片文件（支持常见格式，如 PNG/JPEG/WebP 等）');
+    fileInput.value = '';
+    return;
+  }
+
+  const url = URL.createObjectURL(file);
+
+  if (urlHolderKey === 'image1' && image1PreviewUrl) {
+    URL.revokeObjectURL(image1PreviewUrl);
+  }
+  if (urlHolderKey === 'image2' && image2PreviewUrl) {
+    URL.revokeObjectURL(image2PreviewUrl);
+  }
+
+  if (urlHolderKey === 'image1') {
+    image1PreviewUrl = url;
+  } else {
+    image2PreviewUrl = url;
+  }
+
+  imgElement.src = url;
+  imgElement.style.display = 'block';
 }
 
 if (metaRatingInput) {
@@ -187,6 +298,8 @@ function renderSteamScreenshots(screenshots) {
     empty.className = 'steam-screenshots-empty';
     empty.textContent = '未从 Steam 获取到截图，可尝试手动上传。';
     steamScreenshotsContainer.appendChild(empty);
+    // 没有截图时隐藏自定义滚动条
+    updateSteamScreenshotsScrollbar();
     return;
   }
 
@@ -248,7 +361,20 @@ function renderSteamScreenshots(screenshots) {
       }
     });
   }
+
+  updateSteamScreenshotsScrollbar();
 }
+
+// 监听滚动和窗口尺寸变化，更新自定义滚动条
+if (steamScreenshotsContainer) {
+  steamScreenshotsContainer.addEventListener('scroll', () => {
+    updateSteamScreenshotsScrollbar();
+  });
+}
+
+window.addEventListener('resize', () => {
+  updateSteamScreenshotsScrollbar();
+});
 
 async function fetchSteamAppDetailsById(appIdRaw) {
   const appId = String(appIdRaw || '').trim();
@@ -580,10 +706,10 @@ async function generate() {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // 画第一张图片（上）
-    ctx.drawImage(img1Data.img, 0, 0, CANVAS_WIDTH, IMAGE_HEIGHT);
+    drawImageLetterboxed(img1Data.img, 0, 0, CANVAS_WIDTH, IMAGE_HEIGHT);
 
     // 画第二张图片（下）
-    ctx.drawImage(img2Data.img, 0, IMAGE_HEIGHT + GAP_HEIGHT, CANVAS_WIDTH, IMAGE_HEIGHT);
+    drawImageLetterboxed(img2Data.img, 0, IMAGE_HEIGHT + GAP_HEIGHT, CANVAS_WIDTH, IMAGE_HEIGHT);
 
     // 中间文字区域
     drawTextArea(gameNameInput.value, gameName2Input ? gameName2Input.value : '', gameTagsInput.value);
@@ -653,11 +779,17 @@ function setSourceMode(mode) {
     localSourceGroup.style.display = 'none';
     sourceSteamBtn.classList.add('active');
     sourceLocalBtn.classList.remove('active');
+    // 切回 Steam 时，根据当前内容刷新一次滚动条
+    updateSteamScreenshotsScrollbar();
   } else {
     steamSourceGroup.style.display = 'none';
     localSourceGroup.style.display = '';
     sourceSteamBtn.classList.remove('active');
     sourceLocalBtn.classList.add('active');
+    // 使用本地图片时不需要 Steam 截图滚动条
+    if (steamScreenshotsScrollbar) {
+      steamScreenshotsScrollbar.style.display = 'none';
+    }
   }
 }
 
@@ -666,6 +798,19 @@ if (sourceSteamBtn && sourceLocalBtn) {
   sourceLocalBtn.addEventListener('click', () => setSourceMode('local'));
   // 默认使用 Steam 截图
   setSourceMode('steam');
+}
+
+// 本地图片上传时显示预览
+if (image1Input && image1Preview) {
+  image1Input.addEventListener('change', () => {
+    updateLocalImagePreview(image1Input, image1Preview, 'image1');
+  });
+}
+
+if (image2Input && image2Preview) {
+  image2Input.addEventListener('change', () => {
+    updateLocalImagePreview(image2Input, image2Preview, 'image2');
+  });
 }
 
 // 水印文本联动：修改后自动刷新预览（在已有预览的前提下）
