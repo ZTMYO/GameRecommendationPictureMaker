@@ -47,9 +47,10 @@
                         <div class="form-group">
                             <label for="steamSearch">Steam 官方信息与截图</label>
                             <div class="steam-search-row">
-                                <input id="steamSearchInput" type="text" placeholder="输入 Steam AppID" autocomplete="off" autocorrect="off"
-                                    autocapitalize="off" spellcheck="false" />
+                                <input id="steamSearchInput" type="text" placeholder="输入 Steam AppID" autocomplete="off"
+                                    autocorrect="off" autocapitalize="off" spellcheck="false" />
                                 <button id="steamSearchBtn" type="button" class="steam-search-btn">获取</button>
+                                <div id="steamSearchMessage" class="steam-search-message"></div>
                             </div>
                             <div id="steamSearchResults" class="steamSearchResults"></div>
                         </div>
@@ -101,28 +102,54 @@
                 <form autocomplete="off" novalidate onsubmit="return false;">
                     <div class="form-group">
                         <label for="watermarkText">水印文本</label>
-                        <input id="watermarkText" type="text" placeholder="例如：@ZTMYO" autocomplete="off" autocorrect="off"
-                            autocapitalize="off" spellcheck="false" />
+                        <input id="watermarkText" type="text" placeholder="例如：@ZTMYO" autocomplete="off"
+                            autocorrect="off" autocapitalize="off" spellcheck="false" />
                     </div>
 
                     <div class="form-group">
                         <label>价格文本</label>
                         <div style="display: flex; gap: 8px;">
-                            <input id="metaPriceOriginal" type="text" placeholder="原价" autocomplete="off" autocorrect="off"
-                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
-                            <input id="metaPriceCurrent" type="text" placeholder="现价" autocomplete="off" autocorrect="off"
-                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="metaPriceOriginal" type="text" placeholder="原价" autocomplete="off"
+                                autocorrect="off" autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="metaPriceCurrent" type="text" placeholder="现价" autocomplete="off"
+                                autocorrect="off" autocapitalize="off" spellcheck="false" style="flex: 1;" />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="metaRating">评分文本</label>
-                        <input id="metaRating" type="text" placeholder="例如：评分 89" autocomplete="off" autocorrect="off"
-                            autocapitalize="off" spellcheck="false" />
+                        <input id="metaRating" type="text" placeholder="例如：评分 90、好评如潮" autocomplete="off"
+                            autocorrect="off" autocapitalize="off" spellcheck="false" />
                     </div>
                 </form>
             </section>
         </main>
+    </div>
+
+    <!-- 下载格式选择模态框 -->
+    <div id="downloadFormatModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-title">选择下载格式</div>
+            <div class="modal-body">
+                <label class="modal-option">
+                    <input type="radio" name="downloadFormat" value="png" checked />
+                    <span>PNG（无损，清晰）</span>
+                </label>
+                <label class="modal-option">
+                    <input type="radio" name="downloadFormat" value="jpg" />
+                    <span>JPG（有损，体积更小）</span>
+                </label>
+                <label class="modal-option">
+                    <input type="radio" name="downloadFormat" value="webp" />
+                    <span>WEBP（更高压缩率，现代浏览器支持）</span>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="downloadCancelBtn" class="modal-btn secondary">取消</button>
+                <button type="button" id="downloadConfirmBtn" class="modal-btn primary">确认下载</button>
+            </div>
+        </div>
     </div>
 
     <script src="main.js"></script>

@@ -18,14 +18,25 @@ const metaRatingInput = document.getElementById('metaRating');
 // Steam 相关元素
 const steamSearchInput = document.getElementById('steamSearchInput');
 const steamSearchBtn = document.getElementById('steamSearchBtn');
+const steamSearchMessage = document.getElementById('steamSearchMessage');
 const steamScreenshotsContainer = document.getElementById('steamScreenshots');
 const steamScreenshotsWrapper = document.querySelector('.steam-screenshots-wrapper');
 const steamScreenshotsScrollbar = document.querySelector('.steam-screenshots-scrollbar');
 const steamScreenshotsThumb = document.querySelector('.steam-screenshots-thumb');
+
+// 自定义滚动条拖拽状态
+let isDraggingSteamThumb = false;
+let steamThumbDragStartY = 0;
+let steamScrollStartTop = 0;
 const sourceSteamBtn = document.getElementById('sourceSteamBtn');
 const sourceLocalBtn = document.getElementById('sourceLocalBtn');
 const steamSourceGroup = document.getElementById('steamSourceGroup');
 const localSourceGroup = document.getElementById('localSourceGroup');
+
+// 下载格式选择模态框相关元素
+const downloadFormatModal = document.getElementById('downloadFormatModal');
+const downloadConfirmBtn = document.getElementById('downloadConfirmBtn');
+const downloadCancelBtn = document.getElementById('downloadCancelBtn');
 
 const ctx = canvas.getContext('2d');
 
@@ -56,6 +67,15 @@ let selectedSteamImages = [];
 
 // 当前游戏的价格+评分信息文本（显示在中间黑色带右侧）
 let gameMetaText = '';
+
+// 当前图片来源模式：'steam' 或 'local'
+let currentSourceMode = 'steam';
+
+// 设置 Steam 搜索提示文本
+function setSteamSearchMessage(msg) {
+  if (!steamSearchMessage) return;
+  steamSearchMessage.textContent = msg || '';
+}
 
 function rebuildGameMetaText() {
   const parts = [];
@@ -293,12 +313,29 @@ function renderSteamScreenshots(screenshots) {
   steamScreenshotsContainer.innerHTML = '';
   selectedSteamImages = [];
 
+  const updateSteamSelectionOrder = () => {
+    if (!steamScreenshotsContainer) return;
+    const items = steamScreenshotsContainer.querySelectorAll('.steam-screenshot-item');
+    // 先清除所有顺序标记
+    items.forEach(item => {
+      item.removeAttribute('data-order');
+    });
+
+    selectedSteamImages.forEach((url, index) => {
+      const order = index + 1;
+      items.forEach(item => {
+        if (item.dataset.url === url) {
+          item.setAttribute('data-order', String(order));
+        }
+      });
+    });
+  };
+
   if (!Array.isArray(screenshots) || screenshots.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'steam-screenshots-empty';
     empty.textContent = '未从 Steam 获取到截图，可尝试手动上传。';
     steamScreenshotsContainer.appendChild(empty);
-    // 没有截图时隐藏自定义滚动条
     updateSteamScreenshotsScrollbar();
     return;
   }
@@ -326,6 +363,7 @@ function renderSteamScreenshots(screenshots) {
         // 取消选中
         selectedSteamImages.splice(selectedIndex, 1);
         item.classList.remove('selected');
+        item.removeAttribute('data-order');
       } else {
         if (selectedSteamImages.length >= 2) {
           // 简单策略：第三次点击时，先移除最早的一张
@@ -341,6 +379,8 @@ function renderSteamScreenshots(screenshots) {
         selectedSteamImages.push(currentUrl);
         item.classList.add('selected');
       }
+
+      updateSteamSelectionOrder();
     });
 
     steamScreenshotsContainer.appendChild(item);
@@ -360,6 +400,7 @@ function renderSteamScreenshots(screenshots) {
         item.classList.add('selected');
       }
     });
+    updateSteamSelectionOrder();
   }
 
   updateSteamScreenshotsScrollbar();
@@ -372,6 +413,79 @@ if (steamScreenshotsContainer) {
   });
 }
 
+// 自定义滚动条拖拽逻辑
+if (steamScreenshotsContainer && steamScreenshotsScrollbar && steamScreenshotsThumb) {
+  const onSteamThumbMouseMove = (e) => {
+    if (!isDraggingSteamThumb) return;
+
+    const scrollHeight = steamScreenshotsContainer.scrollHeight;
+    const clientHeight = steamScreenshotsContainer.clientHeight;
+    const maxScrollTop = scrollHeight - clientHeight;
+    if (maxScrollTop <= 0) return;
+
+    const trackHeight = steamScreenshotsScrollbar.clientHeight || clientHeight;
+    const thumbHeight = steamScreenshotsThumb.clientHeight;
+    const maxThumbTop = trackHeight - thumbHeight;
+    if (maxThumbTop <= 0) return;
+
+    const deltaY = e.clientY - steamThumbDragStartY;
+    const scrollDelta = (deltaY * maxScrollTop) / maxThumbTop;
+    let newScrollTop = steamScrollStartTop + scrollDelta;
+
+    if (newScrollTop < 0) newScrollTop = 0;
+    if (newScrollTop > maxScrollTop) newScrollTop = maxScrollTop;
+
+    steamScreenshotsContainer.scrollTop = newScrollTop;
+  };
+
+  const onSteamThumbMouseUp = () => {
+    if (!isDraggingSteamThumb) return;
+    isDraggingSteamThumb = false;
+    document.removeEventListener('mousemove', onSteamThumbMouseMove);
+    document.removeEventListener('mouseup', onSteamThumbMouseUp);
+  };
+
+  steamScreenshotsThumb.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!steamScreenshotsContainer) return;
+
+    isDraggingSteamThumb = true;
+    steamThumbDragStartY = e.clientY;
+    steamScrollStartTop = steamScreenshotsContainer.scrollTop;
+
+    document.addEventListener('mousemove', onSteamThumbMouseMove);
+    document.addEventListener('mouseup', onSteamThumbMouseUp);
+  });
+
+  // 点击轨道快速跳转到对应位置
+  steamScreenshotsScrollbar.addEventListener('mousedown', (e) => {
+    // 如果点在滑块上，交给滑块自身处理
+    if (e.target === steamScreenshotsThumb) return;
+
+    const rect = steamScreenshotsScrollbar.getBoundingClientRect();
+    const clickY = e.clientY - rect.top;
+
+    const scrollHeight = steamScreenshotsContainer.scrollHeight;
+    const clientHeight = steamScreenshotsContainer.clientHeight;
+    const maxScrollTop = scrollHeight - clientHeight;
+    if (maxScrollTop <= 0) return;
+
+    const trackHeight = steamScreenshotsScrollbar.clientHeight || clientHeight;
+    const thumbHeight = steamScreenshotsThumb.clientHeight;
+    const maxThumbTop = trackHeight - thumbHeight;
+    if (maxThumbTop <= 0) return;
+
+    let thumbTop = clickY - thumbHeight / 2;
+    if (thumbTop < 0) thumbTop = 0;
+    if (thumbTop > maxThumbTop) thumbTop = maxThumbTop;
+
+    const ratio = thumbTop / maxThumbTop;
+    steamScreenshotsContainer.scrollTop = ratio * maxScrollTop;
+  });
+}
+
 window.addEventListener('resize', () => {
   updateSteamScreenshotsScrollbar();
 });
@@ -380,18 +494,21 @@ async function fetchSteamAppDetailsById(appIdRaw) {
   const appId = String(appIdRaw || '').trim();
 
   if (!appId) {
-    alert('请输入 Steam AppID。');
+    setSteamSearchMessage('请输入 Steam AppID。');
     return;
   }
 
   if (!/^[0-9]+$/.test(appId)) {
-    alert('AppID 需要是纯数字，例如 730。');
+    setSteamSearchMessage('AppID 需要是纯数字，例如 730。');
     return;
   }
 
   const url = `http://localhost:3000/steam/appdetails?appids=${encodeURIComponent(appId)}&cc=cn&l=schinese`;
 
   try {
+    // 请求前清空旧提示
+    setSteamSearchMessage('');
+
     const resp = await fetch(url);
     if (!resp.ok) {
       throw new Error(`请求失败：${resp.status}`);
@@ -473,7 +590,7 @@ async function fetchSteamAppDetailsById(appIdRaw) {
       generate();
     }
   } catch (err) {
-    alert(err.message || '从 Steam 获取游戏信息失败。');
+    setSteamSearchMessage(err.message || '从 Steam 获取游戏信息失败。');
   }
 }
 
@@ -499,13 +616,13 @@ function drawTextArea(title, subTitle, tags) {
 
   if (subTitleText) {
     // 有名称2时：三行拉开间距
-    titleY = midY - 58;     // 标题稍微靠上
-    subTitleY = midY;       // 英文名居中
-    tagsY = midY + 54;      // 标签再往下拉一些
+    titleY = midY - 76;
+    subTitleY = midY;
+    tagsY = midY + 64;
   } else {
     // 只有标题+标签时：保持原先相对紧凑的两行布局
     titleY = areaTop + areaHeight / 2 - 40;
-    subTitleY = midY; // 不会被使用
+    subTitleY = midY;
     tagsY = areaTop + areaHeight / 2 + 32;
   }
 
@@ -576,8 +693,9 @@ function drawTextArea(title, subTitle, tags) {
 
       if (hasDiscountPrice && discountOriginalPriceText && discountCurrentPriceText) {
         // 使用不同字号：现价稍大、原价略小
-        const currentFontSize = 56;
-        const originalFontSize = 44;
+        // 有副标题（三行）时整体字号略微放大
+        const currentFontSize = hasSubTitle ? 60 : 56;
+        const originalFontSize = hasSubTitle ? 48 : 44;
 
         // 先测量两段文字宽度
         ctx.font = `bold ${currentFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
@@ -615,7 +733,10 @@ function drawTextArea(title, subTitle, tags) {
         ctx.stroke();
       } else {
         // 无折扣：单行展示价格
-        ctx.font = 'bold 56px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+        const singlePriceFont = hasSubTitle
+          ? 'bold 60px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+          : 'bold 56px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.font = singlePriceFont;
         ctx.fillStyle = '#F9FAFB';
         ctx.fillText(priceText, baseX, priceY);
       }
@@ -623,7 +744,11 @@ function drawTextArea(title, subTitle, tags) {
 
     // 评分：略小一号，放在价格下方
     if (ratingText) {
-      ctx.font = '600 44px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      const hasSubTitleForRating = !!(subTitle && subTitle.trim());
+      // 有副标题（三行）时，评分字体稍微更大一点以平衡整体
+      ctx.font = hasSubTitleForRating
+        ? '600 48px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+        : '600 44px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.fillStyle = '#E5E7EB';
       const hasSubTitle = !!(subTitle && subTitle.trim());
       let ratingY;
@@ -672,7 +797,7 @@ function drawWatermark() {
 }
 
 async function generate() {
-  const useSteamImages = selectedSteamImages.length === 2;
+  const useSteamImages = currentSourceMode === 'steam' && selectedSteamImages.length === 2;
 
   const file1 = image1Input.files[0];
   const file2 = image2Input.files[0];
@@ -739,34 +864,95 @@ async function generate() {
   }
 }
 
-function downloadImage() {
-  // 生成有序文件名：result_001.png, result_002.png ...
-  const indexStr = String(downloadIndex).padStart(3, '0');
-  const filename = `result_${indexStr}.png`;
+function downloadImage(format) {
+  let fmt;
+  if (format === 'jpg' || format === 'jpeg') {
+    fmt = 'jpg';
+  } else if (format === 'webp') {
+    fmt = 'webp';
+  } else {
+    fmt = 'png';
+  }
+
+  // 统一文件名：result.{ext}
+  const filename = `result.${fmt}`;
 
   const link = document.createElement('a');
   link.download = filename;
-  link.href = canvas.toDataURL('image/png');
+  if (fmt === 'jpg') {
+    // 适中质量的 JPG，减小体积
+    link.href = canvas.toDataURL('image/jpeg', 0.9);
+  } else if (fmt === 'webp') {
+    // WEBP 格式（受浏览器支持情况影响）
+    link.href = canvas.toDataURL('image/webp');
+  } else {
+    link.href = canvas.toDataURL('image/png');
+  }
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-
-  downloadIndex += 1;
 }
 
 generateBtn.addEventListener('click', () => {
   generate();
 });
 
+// 显示 / 隐藏下载格式选择模态框
+function showDownloadFormatModal() {
+  if (!downloadFormatModal) return;
+  downloadFormatModal.style.display = 'flex';
+}
+
+function hideDownloadFormatModal() {
+  if (!downloadFormatModal) return;
+  downloadFormatModal.style.display = 'none';
+}
+
+// 点击下载按钮时，只弹出格式选择模态框
 downloadBtn.addEventListener('click', () => {
   if (downloadBtn.disabled) return;
-  downloadImage();
+  showDownloadFormatModal();
 });
+
+// 模态框：取消按钮
+if (downloadCancelBtn) {
+  downloadCancelBtn.addEventListener('click', () => {
+    hideDownloadFormatModal();
+  });
+}
+
+// 模态框：确认下载按钮
+if (downloadConfirmBtn) {
+  downloadConfirmBtn.addEventListener('click', () => {
+    if (!downloadFormatModal) return;
+
+    const radios = downloadFormatModal.querySelectorAll('input[name="downloadFormat"]');
+    let selected = 'png';
+    radios.forEach((el) => {
+      if (el.checked) {
+        selected = el.value;
+      }
+    });
+
+    hideDownloadFormatModal();
+    downloadImage(selected);
+  });
+}
 
 // 绑定 Steam AppID 获取按钮
 if (steamSearchBtn && steamSearchInput) {
-  steamSearchBtn.addEventListener('click', () => {
-    fetchSteamAppDetailsById(steamSearchInput.value);
+  steamSearchBtn.addEventListener('click', async () => {
+    const appIdValue = steamSearchInput.value;
+    // 进入加载状态
+    steamSearchBtn.disabled = true;
+    steamSearchBtn.classList.add('loading');
+
+    try {
+      await fetchSteamAppDetailsById(appIdValue);
+    } finally {
+      steamSearchBtn.disabled = false;
+      steamSearchBtn.classList.remove('loading');
+    }
   });
 }
 
@@ -775,6 +961,7 @@ function setSourceMode(mode) {
   if (!steamSourceGroup || !localSourceGroup || !sourceSteamBtn || !sourceLocalBtn) return;
 
   if (mode === 'steam') {
+    currentSourceMode = 'steam';
     steamSourceGroup.style.display = '';
     localSourceGroup.style.display = 'none';
     sourceSteamBtn.classList.add('active');
@@ -782,6 +969,7 @@ function setSourceMode(mode) {
     // 切回 Steam 时，根据当前内容刷新一次滚动条
     updateSteamScreenshotsScrollbar();
   } else {
+    currentSourceMode = 'local';
     steamSourceGroup.style.display = 'none';
     localSourceGroup.style.display = '';
     sourceSteamBtn.classList.remove('active');
@@ -789,6 +977,12 @@ function setSourceMode(mode) {
     // 使用本地图片时不需要 Steam 截图滚动条
     if (steamScreenshotsScrollbar) {
       steamScreenshotsScrollbar.style.display = 'none';
+    }
+
+    selectedSteamImages = [];
+    if (steamScreenshotsContainer) {
+      const items = steamScreenshotsContainer.querySelectorAll('.steam-screenshot-item.selected');
+      items.forEach(el => el.classList.remove('selected'));
     }
   }
 }

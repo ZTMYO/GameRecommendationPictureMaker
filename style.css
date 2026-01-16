@@ -102,7 +102,7 @@ input[type="text"]::placeholder {
 input[type="text"]:focus {
   outline: none;
   border-color: #111111;
-  box-shadow: 0 0 0 1px #111111;
+  box-shadow: 0 0 0 0.5px #111111;
 }
 
 input[type="file"] {
@@ -214,24 +214,63 @@ button {
 }
 
 .steam-search-row input[type="text"] {
-  flex: 1;
+  width: 50%;
 }
 
 .steam-search-btn {
   flex: 0 0 auto;
-  padding: 7px 14px;
-  font-size: 13px;
-  border-radius: 999px;
-  border: 1px solid #111111;
-  background: #ffffff;
-  color: #111111;
+  padding: 7px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  background: #f0f0f0;
+  color: #666666;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .steam-search-btn:hover {
-  background: #111111;
   color: #ffffff;
+  background: #111111;
+}
+
+.steam-search-message {
+  flex: 1;
+  min-height: 1em;
+  font-size: 12px;
+  color: #ea5e5e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Steam 获取按钮加载状态 */
+.steam-search-btn.loading {
+  position: relative;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  background: transparent;
+  border: none;
+  color: transparent;
+}
+
+.steam-search-btn.loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(17, 24, 39, 0.18);
+  border-top-color: #111111;
+  animation: steam-btn-spin 0.7s linear infinite;
+}
+
+@keyframes steam-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .steam-screenshots-wrapper {
@@ -314,11 +353,13 @@ button {
 }
 
 .steam-screenshot-item.selected {
-  border-color: #111111;
+  border:1px solid #111111;
 }
 
 .steam-screenshot-item.selected::after {
-  content: '△';
+  content: attr(data-order);
+  font-size: 24px;
+  font-weight: 700;
   opacity: 1;
 }
 
@@ -372,4 +413,86 @@ button {
   .left-pane {
     flex: 1;
   }
+}
+
+/* 下载格式选择模态框 */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.modal-dialog {
+  width: 320px;
+  max-width: calc(100% - 40px);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.22);
+  padding: 18px 18px 14px;
+  border: 1px solid #e5e7eb;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.modal-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.modal-option input[type="radio"] {
+  width: 14px;
+  height: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modal-btn.primary {
+  background: #111111;
+  color: #ffffff;
+}
+
+.modal-btn.primary:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.modal-btn.secondary {
+  background: #ffffff;
+  color: #374151;
+  border:1px solid #e5e7eb;
+}
+
+.modal-btn.secondary:hover {
+  background: #e5e7eb;
 }
