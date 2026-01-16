@@ -1,6 +1,9 @@
 const gameNameInput = document.getElementById('gameName');
 const gameName2Input = document.getElementById('gameName2');
 const gameTagsInput = document.getElementById('gameTags');
+const gameNameFontSizeInput = document.getElementById('gameNameFontSize');
+const gameName2FontSizeInput = document.getElementById('gameName2FontSize');
+const gameTagsFontSizeInput = document.getElementById('gameTagsFontSize');
 const image1Input = document.getElementById('image1');
 const image2Input = document.getElementById('image2');
 const image1Preview = document.getElementById('image1Preview');
@@ -258,6 +261,19 @@ if (metaRatingInput) {
     }
   });
 }
+
+// 标题 / 标签字号调整时即时刷新预览
+function setupLiveFontSizeUpdate(inputEl) {
+  if (!inputEl) return;
+  inputEl.addEventListener('input', () => {
+    if (!hasGeneratedOnce || typeof generate !== 'function') return;
+    generate();
+  });
+}
+
+setupLiveFontSizeUpdate(gameNameFontSizeInput);
+setupLiveFontSizeUpdate(gameName2FontSizeInput);
+setupLiveFontSizeUpdate(gameTagsFontSizeInput);
 
 // 从远程 URL 加载图片（用于 Steam 截图）
 function loadImageFromUrl(url) {
@@ -628,7 +644,20 @@ function drawTextArea(title, subTitle, tags) {
 
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#F9FAFB';
-  ctx.font = 'bold 80px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+
+  // 标题/副标题/标签字号可调
+  const titleFontSize = gameNameFontSizeInput
+    ? Math.min(100, Math.max(40, parseInt(gameNameFontSizeInput.value || '80', 10)))
+    : 80;
+  const subTitleFontSize = gameName2FontSizeInput
+    ? Math.min(72, Math.max(28, parseInt(gameName2FontSizeInput.value || '48', 10)))
+    : 48;
+  const tagsFontSize = gameTagsFontSizeInput
+    ? Math.min(60, Math.max(28, parseInt(gameTagsFontSizeInput.value || '40', 10)))
+    : 40;
+
+  const titleFont = `bold ${titleFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = titleFont;
 
   if (hasMeta) {
     // 有右侧信息时：左对齐，整体稍微靠左
@@ -638,12 +667,12 @@ function drawTextArea(title, subTitle, tags) {
 
     // 名称 2（英文名），略小字号
     if (subTitleText) {
-      ctx.font = '600 48px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.font = `600 ${subTitleFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.fillStyle = '#E5E7EB';
       ctx.fillText(subTitleText, leftPadding, subTitleY);
     }
 
-    ctx.font = '500 40px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.font = `500 ${tagsFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
     ctx.fillStyle = '#9CA3AF';
     ctx.fillText(tagsText, leftPadding, tagsY);
   } else {
@@ -654,12 +683,12 @@ function drawTextArea(title, subTitle, tags) {
 
     // 名称 2（英文名），略小字号
     if (subTitleText) {
-      ctx.font = '600 48px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.font = `600 ${subTitleFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.fillStyle = '#E5E7EB';
       ctx.fillText(subTitleText, centerX, subTitleY);
     }
 
-    ctx.font = '500 40px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.font = `500 ${tagsFontSize}px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
     ctx.fillStyle = '#9CA3AF';
     ctx.fillText(tagsText, centerX, tagsY);
   }

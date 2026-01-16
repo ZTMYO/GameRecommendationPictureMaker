@@ -127,6 +127,25 @@ input[type="file"]::file-selector-button:hover {
   color: #ffffff;
 }
 
+.font-size-input {
+  width: 50px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid #d4d4d4;
+  background: #ffffff;
+  color: #111111;
+  font-size: 15px;
+  text-align: center;
+}
+
+.font-size-input:focus {
+  outline: none;
+  border-color: #111111;
+  box-shadow: 0 0 0 0.5px #111111;
+}
+
+
+
 .actions {
   display: flex;
   gap: 10px;
@@ -219,7 +238,7 @@ button {
 
 .steam-search-btn {
   flex: 0 0 auto;
-  padding: 7px 8px;
+  padding: 7px 10px;
   font-size: 12px;
   border-radius: 8px;
   background: #f0f0f0;

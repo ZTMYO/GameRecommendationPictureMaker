@@ -18,21 +18,41 @@
             <section class="left-pane">
                 <form autocomplete="off" novalidate onsubmit="return false;">
                     <div class="form-group">
+                        <label for="steamSearch">Steam 官方信息与截图</label>
+                        <div class="steam-search-row">
+                            <input id="steamSearchInput" type="text" placeholder="输入 Steam AppID" autocomplete="off"
+                                autocorrect="off" autocapitalize="off" spellcheck="false" />
+                            <button id="steamSearchBtn" type="button" class="steam-search-btn">获取</button>
+                            <div id="steamSearchMessage" class="steam-search-message"></div>
+                        </div>
+                        <div id="steamSearchResults" class="steamSearchResults"></div>
+                    </div>
+
+                    <div class="form-group">
                         <label for="gameName">游戏名称 1</label>
-                        <input id="gameName" type="text" placeholder="中文名" autocomplete="off" autocorrect="off"
-                            autocapitalize="off" spellcheck="false" />
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input id="gameName" type="text" placeholder="中文名" autocomplete="off" autocorrect="off"
+                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="gameNameFontSize" class="font-size-input" type="number" min="40" max="100" step="2" value="80" title="标题字号" />
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label for="gameName2">游戏名称 2（可选）</label>
-                        <input id="gameName2" type="text" placeholder="英文名" autocomplete="off" autocorrect="off"
-                            autocapitalize="off" spellcheck="false" />
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input id="gameName2" type="text" placeholder="英文名" autocomplete="off" autocorrect="off"
+                                autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="gameName2FontSize" class="font-size-input" type="number" min="28" max="72" step="2" value="48" title="副标题字号" />
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label for="gameTags">游戏标签（可多条，用空格或 / 分隔）</label>
-                        <input id="gameTags" type="text" placeholder="例如：动作 / 冒险 / 单机" autocomplete="off"
-                            autocorrect="off" autocapitalize="off" spellcheck="false" />
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input id="gameTags" type="text" placeholder="例如：动作 / 冒险 / 单机" autocomplete="off"
+                                autocorrect="off" autocapitalize="off" spellcheck="false" style="flex: 1;" />
+                            <input id="gameTagsFontSize" class="font-size-input" type="number" min="28" max="60" step="2" value="40" title="标签字号" />
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -44,16 +64,7 @@
                     </div>
 
                     <div id="steamSourceGroup">
-                        <div class="form-group">
-                            <label for="steamSearch">Steam 官方信息与截图</label>
-                            <div class="steam-search-row">
-                                <input id="steamSearchInput" type="text" placeholder="输入 Steam AppID" autocomplete="off"
-                                    autocorrect="off" autocapitalize="off" spellcheck="false" />
-                                <button id="steamSearchBtn" type="button" class="steam-search-btn">获取</button>
-                                <div id="steamSearchMessage" class="steam-search-message"></div>
-                            </div>
-                            <div id="steamSearchResults" class="steamSearchResults"></div>
-                        </div>
+
 
                         <div class="form-group">
                             <label>从 Steam 截图中选择两张图片</label>
