@@ -10,6 +10,9 @@ const image1Preview = document.getElementById('image1Preview');
 const image2Preview = document.getElementById('image2Preview');
 const generateBtn = document.getElementById('generateBtn');
 const downloadBtn = document.getElementById('downloadBtn');
+const addToFolderBtn = document.getElementById('addToFolderBtn');
+const openFolderBtn = document.getElementById('openFolderBtn');
+const exportFolderZipBtn = document.getElementById('exportFolderZipBtn');
 const canvas = document.getElementById('previewCanvas');
 const placeholder = document.getElementById('placeholder');
 const watermarkInput = document.getElementById('watermarkText');
@@ -39,7 +42,12 @@ const localSourceGroup = document.getElementById('localSourceGroup');
 // 下载格式选择模态框相关元素
 const downloadFormatModal = document.getElementById('downloadFormatModal');
 const downloadConfirmBtn = document.getElementById('downloadConfirmBtn');
-const downloadCancelBtn = document.getElementById('downloadCancelBtn');
+const downloadCloseBtn = document.getElementById('downloadCloseBtn');
+
+const imageFolderModal = document.getElementById('imageFolderModal');
+const imageFolderList = document.getElementById('imageFolderList');
+const imageFolderCloseBtn = document.getElementById('imageFolderCloseBtn');
+const imageFolderExportBtn = document.getElementById('imageFolderExportBtn');
 
 const ctx = canvas.getContext('2d');
 
@@ -73,6 +81,35 @@ let gameMetaText = '';
 
 // 当前图片来源模式：'steam' 或 'local'
 let currentSourceMode = 'steam';
+
+let imageFolder = [];
+let imageFolderIdCounter = 0;
+
+function showToast(message) {
+  const container = document.getElementById('toastContainer');
+  if (!container || !message) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // 触发过渡
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  // 一段时间后自动移除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode === container) {
+        container.removeChild(toast);
+      }
+    }, 300);
+  }, 2200);
+}
 
 // 设置 Steam 搜索提示文本
 function setSteamSearchMessage(msg) {
@@ -229,7 +266,7 @@ function updateLocalImagePreview(fileInput, imgElement, urlHolderKey) {
   }
 
   if (!file.type || !file.type.startsWith('image/')) {
-    alert('请选择图片文件（支持常见格式，如 PNG/JPEG/WebP 等）');
+    showToast('请选择图片文件（支持常见格式，如 PNG/JPEG/WebP 等）');
     fileInput.value = '';
     return;
   }
@@ -832,7 +869,7 @@ async function generate() {
   const file2 = image2Input.files[0];
 
   if (!useSteamImages && (!file1 || !file2)) {
-    alert('请先选择两张图片（上方和下方），或从 Steam 截图中选择两张。');
+    showToast('请先选择两张图片（上方和下方），或从 Steam 截图中选择两张。');
     return;
   }
 
@@ -882,14 +919,11 @@ async function generate() {
 
     // 启用下载按钮
     downloadBtn.disabled = false;
-
-    // 释放 URL（仅对本地文件模式有效）
-    if (!useSteamImages) {
-      URL.revokeObjectURL(img1Data.url);
-      URL.revokeObjectURL(img2Data.url);
+    if (addToFolderBtn) {
+      addToFolderBtn.disabled = false;
     }
   } catch (err) {
-    alert(err.message || '生成失败，请检查图片。');
+    showToast(err.message || '生成失败，请检查图片。');
   }
 }
 
@@ -922,6 +956,122 @@ function downloadImage(format) {
   document.body.removeChild(link);
 }
 
+function addCurrentCanvasToFolder() {
+  if (!canvas) return;
+  if (!hasGeneratedOnce) {
+    showToast('请先生成一张推荐图，再加入文件夹。');
+    return;
+  }
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const item = {
+    id: ++imageFolderIdCounter,
+    dataUrl
+  };
+  imageFolder.push(item);
+  showToast('已将当前图片加入文件夹。');
+}
+
+function renderImageFolderList() {
+  if (!imageFolderList) return;
+
+  imageFolderList.innerHTML = '';
+
+  if (!imageFolder.length) {
+    const empty = document.createElement('div');
+    empty.className = 'image-folder-empty';
+    empty.textContent = '文件夹为空，请先将生成的图片加入文件夹。';
+    imageFolderList.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'image-folder-grid';
+
+  imageFolder.forEach((item, index) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'image-folder-item';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'image-folder-thumb';
+
+    const img = document.createElement('img');
+    img.src = item.dataUrl;
+    img.alt = `result_${index + 1}.png`;
+    img.className = 'image-folder-img';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'image-folder-remove';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      imageFolder = imageFolder.filter((x) => x.id !== item.id);
+      renderImageFolderList();
+    });
+
+    thumb.appendChild(img);
+    thumb.appendChild(removeBtn);
+
+    const name = document.createElement('div');
+    name.className = 'image-folder-name';
+    name.textContent = `result_${index + 1}.png`;
+
+    wrapper.appendChild(thumb);
+    wrapper.appendChild(name);
+
+    grid.appendChild(wrapper);
+  });
+
+  imageFolderList.appendChild(grid);
+}
+
+function showImageFolderModal() {
+  if (!imageFolderModal) return;
+  renderImageFolderList();
+  imageFolderModal.style.display = 'flex';
+}
+
+function hideImageFolderModal() {
+  if (!imageFolderModal) return;
+  imageFolderModal.style.display = 'none';
+}
+
+async function exportFolderAsZip() {
+  if (!imageFolder.length) {
+    showToast('文件夹为空，请先加入至少一张图片。');
+    return;
+  }
+
+  try {
+    const resp = await fetch('http://localhost:3000/export-zip', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        images: imageFolder.map((item) => item.dataUrl)
+      })
+    });
+
+    if (!resp.ok) {
+      throw new Error(`导出失败：${resp.status}`);
+    }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'results.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showToast((err && err.message) || '导出 ZIP 失败，请检查后端服务是否已启动。');
+  }
+}
+
 generateBtn.addEventListener('click', () => {
   generate();
 });
@@ -943,9 +1093,9 @@ downloadBtn.addEventListener('click', () => {
   showDownloadFormatModal();
 });
 
-// 模态框：取消按钮
-if (downloadCancelBtn) {
-  downloadCancelBtn.addEventListener('click', () => {
+// 模态框：右上角关闭按钮
+if (downloadCloseBtn) {
+  downloadCloseBtn.addEventListener('click', () => {
     hideDownloadFormatModal();
   });
 }
@@ -1061,5 +1211,36 @@ if (metaPriceCurrentInput) {
     if (hasGeneratedOnce && typeof generate === 'function') {
       generate();
     }
+  });
+}
+
+if (addToFolderBtn) {
+  addToFolderBtn.addEventListener('click', () => {
+    if (addToFolderBtn.disabled) return;
+    addCurrentCanvasToFolder();
+  });
+}
+
+if (openFolderBtn) {
+  openFolderBtn.addEventListener('click', () => {
+    showImageFolderModal();
+  });
+}
+
+if (exportFolderZipBtn) {
+  exportFolderZipBtn.addEventListener('click', () => {
+    exportFolderAsZip();
+  });
+}
+
+if (imageFolderCloseBtn) {
+  imageFolderCloseBtn.addEventListener('click', () => {
+    hideImageFolderModal();
+  });
+}
+
+if (imageFolderExportBtn) {
+  imageFolderExportBtn.addEventListener('click', () => {
+    exportFolderAsZip();
   });
 }

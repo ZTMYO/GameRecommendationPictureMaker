@@ -97,7 +97,12 @@
 
                     <div class="actions">
                         <button id="generateBtn" type="button">生成推荐图</button>
-                        <button id="downloadBtn" type="button" disabled>下载图片</button>
+                        <button id="downloadBtn" type="button" disabled>下载当前图片</button>
+                    </div>
+
+                    <div class="actions" style="margin-top: 8px; gap: 8px; display: flex; flex-wrap: wrap;">
+                        <button id="addToFolderBtn" type="button" disabled>加入文件夹</button>
+                        <button id="openFolderBtn" type="button">打开文件夹</button>
                     </div>
 
                 </form>
@@ -140,7 +145,13 @@
     <!-- 下载格式选择模态框 -->
     <div id="downloadFormatModal" class="modal-backdrop" style="display: none;">
         <div class="modal-dialog">
+            <button type="button" id="downloadCloseBtn" class="modal-close" aria-label="关闭">
+                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4L12 12M12 4L4 12" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
             <div class="modal-title">选择下载格式</div>
+
             <div class="modal-body">
                 <label class="modal-option">
                     <input type="radio" name="downloadFormat" value="png" checked />
@@ -157,12 +168,32 @@
             </div>
 
             <div class="modal-actions">
-                <button type="button" id="downloadCancelBtn" class="modal-btn secondary">取消</button>
                 <button type="button" id="downloadConfirmBtn" class="modal-btn primary">确认下载</button>
             </div>
         </div>
     </div>
 
+    <!-- 图片文件夹管理模态框 -->
+    <div id="imageFolderModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-dialog">
+            <button type="button" id="imageFolderCloseBtn" class="modal-close" aria-label="关闭">
+                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4L12 12M12 4L4 12" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
+            <div class="modal-title">图片文件夹</div>
+
+            <div class="modal-body" id="imageFolderList" style="max-height: 400px; overflow: auto;"></div>
+            <div class="modal-actions">
+                <button type="button" id="imageFolderExportBtn" class="modal-btn primary">导出 ZIP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局 Toast 容器 -->
+    <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="main.js"></script>
 </body>
 
