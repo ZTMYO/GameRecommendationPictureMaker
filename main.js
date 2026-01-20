@@ -11,8 +11,7 @@ const image2Preview = document.getElementById('image2Preview');
 const generateBtn = document.getElementById('generateBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const addToFolderBtn = document.getElementById('addToFolderBtn');
-const openFolderBtn = document.getElementById('openFolderBtn');
-const exportFolderZipBtn = document.getElementById('exportFolderZipBtn');
+const folderFloatingBtn = document.getElementById('folderFloatingBtn');
 const canvas = document.getElementById('previewCanvas');
 const placeholder = document.getElementById('placeholder');
 const watermarkInput = document.getElementById('watermarkText');
@@ -110,6 +109,17 @@ function showToast(message) {
     }, 300);
   }, 2200);
 }
+
+// 自定义本地图片选择按钮：触发隐藏的 file input
+document.querySelectorAll('.file-select-btn').forEach((btn) => {
+  const targetId = btn.getAttribute('data-target');
+  if (!targetId) return;
+  const input = document.getElementById(targetId);
+  if (!input) return;
+  btn.addEventListener('click', () => {
+    input.click();
+  });
+});
 
 // 设置 Steam 搜索提示文本
 function setSteamSearchMessage(msg) {
@@ -956,6 +966,69 @@ function downloadImage(format) {
   document.body.removeChild(link);
 }
 
+function animateCanvasToFolder() {
+  if (!canvas || !folderFloatingBtn) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const folderRect = folderFloatingBtn.getBoundingClientRect();
+
+  // 如果画布当前不可见，就不做动画
+  if (canvasRect.width === 0 || canvasRect.height === 0) return;
+
+  const startX = canvasRect.left + canvasRect.width / 2;
+  const startY = canvasRect.top + canvasRect.height / 2;
+
+  const endX = folderRect.left + folderRect.width / 2;
+  const endY = folderRect.top + folderRect.height / 2;
+
+  const controlX = (startX + endX) / 2;
+  const controlY = Math.min(startY, endY) - 150;
+
+  const img = document.createElement('img');
+  img.src = canvas.toDataURL('image/png');
+  img.style.position = 'fixed';
+  img.style.left = `${startX}px`;
+  img.style.top = `${startY}px`;
+  img.style.transform = 'translate(-50%, -50%) scale(1)';
+  img.style.borderRadius = '12px';
+  img.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.45)';
+  img.style.pointerEvents = 'none';
+  img.style.zIndex = '70';
+  img.style.width = `${canvasRect.width}px`;
+  img.style.height = `${canvasRect.height}px`;
+
+  document.body.appendChild(img);
+
+  const duration = 600;
+  const startTime = performance.now();
+
+  function bezier(p0, p1, p2, t) {
+    const oneMinusT = 1 - t;
+    return oneMinusT * oneMinusT * p0 + 2 * oneMinusT * t * p1 + t * t * p2;
+  }
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(1, elapsed / duration);
+
+    const x = bezier(startX, controlX, endX, t);
+    const y = bezier(startY, controlY, endY, t);
+    const scale = 1 - 0.7 * t; // 从 1 缩小到 0.3
+
+    img.style.left = `${x}px`;
+    img.style.top = `${y}px`;
+    img.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      document.body.removeChild(img);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
 function addCurrentCanvasToFolder() {
   if (!canvas) return;
   if (!hasGeneratedOnce) {
@@ -970,6 +1043,18 @@ function addCurrentCanvasToFolder() {
   };
   imageFolder.push(item);
   showToast('已将当前图片加入文件夹。');
+
+  // 动画：当前预览图飞向右下角文件夹图标
+  animateCanvasToFolder();
+
+  // 清空并隐藏预览区域，显示占位提示
+  try {
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } catch (_) {}
+  canvas.style.display = 'none';
+  if (placeholder) {
+    placeholder.style.display = 'block';
+  }
 }
 
 function renderImageFolderList() {
@@ -1221,15 +1306,9 @@ if (addToFolderBtn) {
   });
 }
 
-if (openFolderBtn) {
-  openFolderBtn.addEventListener('click', () => {
+if (folderFloatingBtn) {
+  folderFloatingBtn.addEventListener('click', () => {
     showImageFolderModal();
-  });
-}
-
-if (exportFolderZipBtn) {
-  exportFolderZipBtn.addEventListener('click', () => {
-    exportFolderAsZip();
   });
 }
 
