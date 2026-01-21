@@ -1218,6 +1218,13 @@ if (steamSearchBtn && steamSearchInput) {
       steamSearchBtn.classList.remove('loading');
     }
   });
+  
+  steamSearchInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      steamSearchBtn.click();
+    }
+  });
 }
 
 // 图片来源切换：Steam 截图 / 本地图片

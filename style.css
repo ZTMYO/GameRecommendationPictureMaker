@@ -14,7 +14,7 @@ body {
 .app {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 16px 40px;
+  padding: 16px 40px;
 }
 
 .app-header {
@@ -55,7 +55,7 @@ body {
 }
 
 .right-pane {
-  flex: 0 0 260px;
+  flex: 0 0 300px;
 }
 
 .center-pane {
@@ -271,6 +271,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 /* Steam 获取按钮加载状态 */
 .steam-search-btn.loading {
   position: relative;
@@ -312,15 +313,12 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  padding: 0 14px 0 10px; /* 右侧稍微缩一点，给自定义滚动条留空间 */
-  max-height: 260px;
+  padding: 0 14px 0 10px;
+  max-height: 140px;
   overflow-y: auto;
-
-  /* 隐藏原生滚动条（Firefox） */
   scrollbar-width: none;
 }
 
-/* 隐藏原生滚动条（Chromium / WebKit，包括 Edge） */
 .steam-screenshots::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -382,7 +380,7 @@ button {
 }
 
 .steam-screenshot-item.selected {
-  border:1px solid #111111;
+  border: 1px solid #111111;
 }
 
 .steam-screenshot-item.selected::after {
@@ -757,7 +755,7 @@ button {
 .modal-btn.secondary {
   background: #ffffff;
   color: #374151;
-  border:1px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
 }
 
 .modal-btn.secondary:hover {
