@@ -64,6 +64,16 @@ node steam-proxy.js
 
 ## 使用教程
 
+### 如何获取 Steam AppID
+
+Steam AppID 是游戏在 Steam 商店中的唯一标识符，您可以通过以下方式获取：
+
+1. 打开 Steam 商店页面，找到您想要制作推荐图的游戏
+2. 在浏览器地址栏中，您会看到类似 `https://store.steampowered.com/app/105600/Terraria/` 的 URL
+3. URL 中 `app/` 后面的数字就是该游戏的 Steam AppID（例如上面链接中的 `105600`）
+
+![如何获取 Steam AppID](guideImage.png)
+
 ### 方法一：使用 Steam 游戏信息
 
 1. 在「Steam 官方信息与截图」输入框中输入游戏的 Steam AppID
